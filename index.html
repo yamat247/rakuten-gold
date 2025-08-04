@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>楽天商品登録自動化システム - Rainforest API連携</title>
+    <link rel="stylesheet" href="css/style.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <!-- ヘッダー -->
+        <header class="header">
+            <div class="header-content">
+                <h1><i class="fas fa-robot"></i> 楽天商品登録自動化システム</h1>
+                <p class="header-subtitle">Amazon商品データを自動取得して楽天に登録</p>
+            </div>
+        </header>
+        
+        <!-- システム状態表示 -->
+        <section class="system-status">
+            <div class="status-card">
+                <div class="status-item">
+                    <i class="fas fa-server"></i>
+                    <span>API接続:</span>
+                    <span id="api-status" class="status-pending">確認中...</span>
+                </div>
+                <div class="status-item">
+                    <i class="fas fa-database"></i>
+                    <span>楽天API:</span>
+                    <span id="rakuten-status" class="status-pending">確認中...</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- ASIN入力セクション -->
+        <section class="input-section">
+            <div class="section-header">
+                <h2><i class="fas fa-search"></i> 商品データ取得</h2>
+            </div>
+            
+            <!-- 単体処理 -->
+            <div class="single-input-group">
+                <div class="input-with-label">
+                    <label for="asin">Amazon ASIN:</label>
+                    <div class="input-group">
+                        <input type="text" id="asin" placeholder="B08XXXXXXXX" maxlength="10" autocomplete="off">
+                        <button id="fetch-product" class="btn btn-primary">
+                            <i class="fas fa-download"></i> 商品データ取得
+                        </button>
+                    </div>
+                    <small class="help-text">10文字の英数字を入力してください（例：B08N5WRWNW）</small>
+                </div>
+            </div>
+            
+            <!-- 一括処理 -->
+            <div class="batch-input-group" style="display:none;">
+                <div class="input-with-label">
+                    <label for="asin-list">ASIN一括入力（改行区切り）:</label>
+                    <textarea id="asin-list" rows="6" placeholder="B08XXXXXXXX&#10;B07XXXXXXXX&#10;B09XXXXXXXX&#10;..."></textarea>
+                    <button id="batch-process" class="btn btn-secondary">
+                        <i class="fas fa-list"></i> 一括処理実行
+                    </button>
+                    <small class="help-text">複数のASINを改行で区切って入力してください</small>
+                </div>
+            </div>
+            
+            <div class="toggle-section">
+                <button id="toggle-batch" class="btn btn-toggle">
+                    <i class="fas fa-exchange-alt"></i> <span>一括処理モード</span>
+                </button>
+            </div>
+        </section>
+
+        <!-- ローディング表示 -->
+        <section class="loading-section" style="display:none;">
+            <div class="loading-container">
+                <div class="loading-spinner">
+                    <i class="fas fa-sync-alt fa-spin"></i>
+                </div>
+                <div class="loading-text">
+                    <h3 id="loading-title">Amazon商品データを取得中...</h3>
+                    <p id="loading-subtitle">Rainforest APIからデータを取得しています</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- 商品プレビュー -->
+        <section class="product-preview" style="display:none;">
+            <div class="section-header">
+                <h2><i class="fas fa-eye"></i> 商品プレビュー</h2>
+            </div>
+            <div id="product-display" class="product-display"></div>
+            <div class="action-buttons">
+                <button id="edit-product" class="btn btn-secondary">
+                    <i class="fas fa-edit"></i> 編集
+                </button>
+                <button id="register-product" class="btn btn-primary">
+                    <i class="fas fa-upload"></i> 楽天に登録
+                </button>
+                <button id="preview-page" class="btn btn-info">
+                    <i class="fas fa-external-link-alt"></i> プレビュー
+                </button>
+            </div>
+        </section>
+
+        <!-- 編集フォーム -->
+        <section class="edit-form" style="display:none;">
+            <div class="section-header">
+                <h2><i class="fas fa-edit"></i> 商品情報編集</h2>
+            </div>
+            <form id="product-edit-form" class="edit-form-container">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="edit-title">商品名 <span class="required">*</span>:</label>
+                        <input type="text" id="edit-title" maxlength="127" required>
+                        <div class="form-meta">
+                            <span class="char-count">0/127文字</span>
+                            <small class="help-text">楽天の検索に最適化されたタイトルを入力</small>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group half">
+                        <label for="edit-price">販売価格 <span class="required">*</span>:</label>
+                        <div class="input-group">
+                            <input type="number" id="edit-price" min="1" required>
+                            <span class="input-addon">円</span>
+                        </div>
+                        <small class="help-text">Amazonの価格にマークアップを適用済み</small>
+                    </div>
+                    
+                    <div class="form-group half">
+                        <label for="edit-stock">在庫数:</label>
+                        <input type="number" id="edit-stock" min="0" value="999">
+                        <small class="help-text">0で在庫切れ表示</small>
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="edit-category">楽天カテゴリ:</label>
+                        <select id="edit-category">
+                            <option value="">カテゴリを選択...</option>
+                            <!-- 動的に生成 -->
+                        </select>
+                        <small class="help-text">適切なカテゴリを選択すると検索されやすくなります</small>
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="edit-description">商品説明:</label>
+                        <textarea id="edit-description" rows="12" class="description-editor"></textarea>
+                        <div class="form-meta">
+                            <small class="help-text">HTMLタグ使用可能。改行は自動でBRタグに変換されます</small>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="edit-keywords">SEOキーワード:</label>
+                        <input type="text" id="edit-keywords" placeholder="キーワード1,キーワード2,キーワード3">
+                        <small class="help-text">カンマ区切りで入力。検索順位向上に効果的です</small>
+                    </div>
+                </div>
+                
+                <div class="form-buttons">
+                    <button type="button" id="save-edits" class="btn btn-primary">
+                        <i class="fas fa-save"></i> 変更を保存
+                    </button>
+                    <button type="button" id="cancel-edit" class="btn btn-secondary">
+                        <i class="fas fa-times"></i> キャンセル
+                    </button>
+                </div>
+            </form>
+        </section>
+
+        <!-- 処理結果 -->
+        <section class="results-section">
+            <div class="section-header">
+                <h2><i class="fas fa-chart-line"></i> 処理結果</h2>
+            </div>
+            <div id="results-display" class="results-container"></div>
+        </section>
+
+        <!-- フッター -->
+        <footer class="footer">
+            <div class="footer-content">
+                <p>&copy; 2025 楽天商品登録自動化システム - Powered by Rainforest API</p>
+                <div class="footer-links">
+                    <a href="#" id="show-help">ヘルプ</a>
+                    <a href="#" id="show-settings">設定</a>
+                </div>
+            </div>
+        </footer>
+    </div>
+
+    <!-- モーダル（ヘルプ、設定等） -->
+    <div id="modal-overlay" class="modal-overlay" style="display:none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modal-title">タイトル</h3>
+                <button class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body" id="modal-body">
+                <!-- 動的コンテンツ -->
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript -->
+    <script src="js/api-client.js"></script>
+    <script src="js/form-builder.js"></script>
+    <script src="js/main.js"></script>
+</body>
+</html>

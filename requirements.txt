@@ -1,0 +1,15 @@
+# 楽天GOLD自動化システム 必要ライブラリ
+aiohttp==3.9.3
+requests==2.31.0
+google-generativeai==0.3.2
+python-dotenv==1.0.1
+
+# GUI用ライブラリ (標準ライブラリなので追加インストール不要)
+# tkinter
+
+# オプション（より高度な機能用）
+pandas==2.2.0
+openpyxl==3.1.2
+
+# 非同期処理 (Python 3.7+標準)
+# asyncio
